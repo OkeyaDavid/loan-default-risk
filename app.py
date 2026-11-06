@@ -42,7 +42,15 @@ def load_tables():
     return cut, sample, metrics
 
 
-cut, sample, metrics = load_tables()
+st.title("Loan Default Risk & Approval Tool")
+
+try:
+    cut, sample, metrics = load_tables()
+except Exception as exc:                      # noqa: BLE001
+    st.error("The app could not load its committed artifacts (model metrics, cut-off table "
+             f"or applicant sample).\n\n**{type(exc).__name__}:** {exc}")
+    st.stop()
+
 best = cut.loc[cut["profit"].idxmax()]
 
 # Scores were computed at training time and stored with the sample, so booting the app is
@@ -52,7 +60,6 @@ median_idx = int(scores.sort_values().index[len(scores) // 2])
 low_idx, high_idx = int(scores.idxmin()), int(scores.idxmax())
 FEATURES = [c for c in sample.columns if c not in (TARGET, "pd_hat")]
 
-st.title("Loan Default Risk & Approval Tool")
 st.caption(
     f"Predicts the probability that a loan applicant defaults, explains each decision, and "
     f"shows what each approval policy costs. LightGBM on ~307k Home Credit applications; "
@@ -156,7 +163,7 @@ with tab_score:
                    "threshold": {"line": {"color": INK, "width": 3}, "value": threshold * 100},
                    "steps": [{"range": [0, threshold * 100], "color": "#eaf1fb"}]}))
         gauge.update_layout(height=200, margin=dict(l=10, r=10, t=10, b=0))
-        st.plotly_chart(gauge, use_container_width=True)
+        st.plotly_chart(gauge, width="stretch")
         st.caption(f"The dark line is the current cut-off, {threshold:.1%}. "
                    f"Break-even on the stated economics is {BREAK_EVEN_PD:.1%}.")
 
@@ -202,7 +209,7 @@ with tab_policy:
                       xaxis_title="Share of applicants approved (%)",
                       legend=dict(orientation="h", y=-0.2),
                       margin=dict(l=10, r=10, t=10, b=10))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     fig2 = go.Figure(go.Scatter(x=cut["approval_rate"], y=cut["bad_rate_approved"],
                                 line=dict(color=BLUE, width=2.5),
@@ -211,12 +218,12 @@ with tab_policy:
     fig2.update_layout(height=300, yaxis_title="Defaults among approved (%)",
                        xaxis_title="Share of applicants approved (%)",
                        margin=dict(l=10, r=10, t=10, b=10))
-    st.plotly_chart(fig2, use_container_width=True)
+    st.plotly_chart(fig2, width="stretch")
     st.caption(f"Realised outcomes on held-out applicants. Loss = defaulted balance x "
                f"{LGD:.0%}; contribution = performing balance x {MARGIN:.0%} minus loss. "
                "Change those two assumptions in src/config.py and the whole curve moves.")
     with st.expander("See the table"):
-        st.dataframe(cut, use_container_width=True, hide_index=True)
+        st.dataframe(cut, width="stretch", hide_index=True)
 
 # ---------------------------------------------------------------- model card
 with tab_card:

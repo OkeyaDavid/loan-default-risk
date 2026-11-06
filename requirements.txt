@@ -1,9 +1,11 @@
-pandas==2.2.3
-numpy==2.1.3
-scikit-learn==1.5.2
-lightgbm==4.5.0
-shap==0.46.0
-streamlit==1.40.1
-plotly==5.24.1
-matplotlib==3.9.2
-joblib==1.4.2
+# Floors with an upper bound on pandas (version 3 changes frequency aliases and some
+# dtype behaviour). The app loads the model only when scoring, and SHAP only on the
+# explanation panel, so a cold start is three file reads.
+pandas>=2.0,<3
+numpy>=1.26
+scikit-learn>=1.4
+lightgbm>=4.3
+shap>=0.44
+streamlit>=1.40
+plotly>=5.18
+joblib>=1.3
