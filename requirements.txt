@@ -1,7 +1,7 @@
-# Floors with an upper bound on pandas (version 3 changes frequency aliases and some
-# dtype behaviour). The app loads the model only when scoring, and SHAP only on the
+# Floors only: verified against the deploy stack (Python 3.14, pandas 3.1.1, plotly 7.1.0,
+# streamlit 1.67). The app loads the model only when scoring, and SHAP only on the
 # explanation panel, so a cold start is three file reads.
-pandas>=2.0,<3
+pandas>=2.0
 numpy>=1.26
 scikit-learn>=1.4
 lightgbm>=4.3
