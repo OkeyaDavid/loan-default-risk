@@ -19,7 +19,7 @@ import streamlit as st
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT / "src"))
 from config import BREAK_EVEN_PD, LGD, MARGIN, TARGET  # noqa: E402
-from explain import pretty  # noqa: E402
+from labels import pretty  # noqa: E402
 
 VARIANT = "lightgbm_noage"
 INK, BLUE, ORANGE, GREEN, RED = "#3d3c39", "#2a78d6", "#eb6834", "#1baf7a", "#e34948"

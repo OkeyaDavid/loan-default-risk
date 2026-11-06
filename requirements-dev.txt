@@ -1,0 +1,4 @@
+# Everything needed to rebuild the model and regenerate the charts from the raw Kaggle file.
+-r requirements.txt
+matplotlib>=3.8
+pyarrow>=15
