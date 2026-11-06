@@ -1,0 +1,142 @@
+"""SHAP explanations: what drives the model overall, and why one applicant was scored.
+
+Run:  python src/explain.py
+
+Produces
+  docs/shap_summary.png          the 15 features that move decisions most
+  docs/example_reasons.md        three worked applicants with plain-English reasons
+  models/shap_background.pkl     small background sample reused by the Streamlit app
+
+The per-applicant reasons are the shape of an adverse-action notice: a declined applicant
+is entitled to the actual reasons, not "the model said no".
+"""
+from __future__ import annotations
+
+import joblib
+import matplotlib
+import numpy as np
+import pandas as pd
+import shap
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
+
+from config import DOCS, MODELS, PROCESSED, RANDOM_STATE, TARGET  # noqa: E402
+
+# Plain-English wording for the features a reviewer will actually see.
+LABELS = {
+    "EXT_SOURCE_1": "external credit score 1",
+    "EXT_SOURCE_2": "external credit score 2",
+    "EXT_SOURCE_3": "external credit score 3",
+    "EXT_SOURCE_MEAN": "average external credit score",
+    "EXT_SOURCE_MIN": "weakest external credit score",
+    "CREDIT_TO_INCOME": "loan size relative to income",
+    "ANNUITY_TO_INCOME": "annual payment relative to income",
+    "CREDIT_TO_GOODS": "loan relative to the price of the purchase",
+    "CREDIT_TERM_YEARS": "repayment term",
+    "INCOME_PER_PERSON": "income per household member",
+    "AMT_INCOME_TOTAL": "annual income",
+    "AMT_CREDIT": "loan amount",
+    "AMT_ANNUITY": "annual payment",
+    "AMT_GOODS_PRICE": "price of the purchase",
+    "AGE_YEARS": "age",
+    "EMPLOYED_YEARS": "years in current employment",
+    "IS_UNEMPLOYED": "not currently employed",
+    "YEARS_SINCE_REGISTRATION": "years since registration record",
+    "YEARS_SINCE_ID_PUBLISH": "years since identity document issued",
+    "CNT_CHILDREN": "number of children",
+    "CNT_FAM_MEMBERS": "household size",
+    "REGION_POPULATION_RELATIVE": "how urban the region is",
+    "REGION_RATING_CLIENT_W_CITY": "region rating",
+    "DEF_30_CNT_SOCIAL_CIRCLE": "defaults in the applicant's social circle",
+    "AMT_REQ_CREDIT_BUREAU_QRT": "credit-bureau enquiries this quarter",
+    "NAME_CONTRACT_TYPE": "loan type",
+    "NAME_INCOME_TYPE": "income type",
+    "NAME_EDUCATION_TYPE": "education",
+    "NAME_FAMILY_STATUS": "family status",
+    "NAME_HOUSING_TYPE": "housing",
+    "OCCUPATION_TYPE": "occupation",
+    "ORGANIZATION_TYPE": "employer type",
+    "FLAG_OWN_CAR": "owns a car",
+    "FLAG_OWN_REALTY": "owns property",
+}
+
+
+def pretty(raw_name: str) -> str:
+    """Turn a transformed column name ('cat__OCCUPATION_TYPE_Laborers') into words."""
+    name = raw_name.split("__", 1)[-1]
+    for col, label in LABELS.items():
+        if name == col:
+            return label
+        if name.startswith(col + "_"):
+            value = name[len(col) + 1:].replace("_", " ")
+            return f"{label} = {value}"
+    return name.replace("_", " ").lower()
+
+
+def reason_lines(contributions: pd.Series, k: int = 3) -> tuple[list[str], list[str]]:
+    """Split the k largest contributions into those raising and lowering the risk."""
+    ranked = contributions.reindex(contributions.abs().sort_values(ascending=False).index)
+    up = [f"{pretty(i)} (+{v:.3f})" for i, v in ranked.items() if v > 0][:k]
+    down = [f"{pretty(i)} ({v:.3f})" for i, v in ranked.items() if v < 0][:k]
+    return up, down
+
+
+def main() -> None:
+    pipe = joblib.load(MODELS / "model.pkl")
+    prep, model = pipe.named_steps["prep"], pipe.named_steps["model"]
+
+    sample = pd.read_csv(PROCESSED / "app_sample.csv")
+    y = sample[TARGET] if TARGET in sample.columns else None
+    X = sample.drop(columns=[TARGET], errors="ignore")
+
+    Xt = prep.transform(X)
+    names = [pretty(n) for n in prep.get_feature_names_out()]
+    Xt_df = pd.DataFrame(Xt, columns=prep.get_feature_names_out())
+
+    explainer = shap.TreeExplainer(model)
+    sv = explainer.shap_values(Xt_df)
+    if isinstance(sv, list):          # older SHAP returns one array per class
+        sv = sv[1]
+
+    shap.summary_plot(sv, Xt_df, feature_names=names, max_display=15, show=False,
+                      plot_size=(9, 6))
+    plt.title("What moves the model's risk score", loc="left", fontsize=13)
+    plt.tight_layout()
+    plt.savefig(DOCS / "shap_summary.png", dpi=150)
+    plt.close()
+    print(f"Summary -> {DOCS / 'shap_summary.png'}")
+
+    mean_abs = (pd.Series(np.abs(sv).mean(axis=0), index=prep.get_feature_names_out())
+                  .sort_values(ascending=False))
+    mean_abs.head(25).rename("mean_abs_shap").to_csv(DOCS / "shap_feature_importance.csv")
+
+    # Three worked examples: the riskiest, the safest, and one near the decision boundary
+    proba = pipe.predict_proba(X)[:, 1]
+    order = np.argsort(proba)
+    picks = {"lowest risk": order[0], "near the cut-off": order[len(order) // 2],
+             "highest risk": order[-1]}
+
+    lines = ["# Example applicant explanations", "",
+             "Generated by `python src/explain.py`. Contributions are SHAP values in "
+             "log-odds; sign, not size, is what a reviewer reads.", ""]
+    for label, idx in picks.items():
+        contrib = pd.Series(sv[idx], index=prep.get_feature_names_out())
+        up, down = reason_lines(contrib)
+        lines += [f"## Applicant {idx} - {label}",
+                  f"**Predicted probability of default: {proba[idx]:.1%}**"
+                  + (f" (actual outcome: {'defaulted' if y.iloc[idx] == 1 else 'repaid'})"
+                     if y is not None else ""), "",
+                  "Raised the risk:"] + [f"- {u}" for u in up] + ["", "Lowered the risk:"] \
+                 + [f"- {d}" for d in down] + [""]
+    (DOCS / "example_reasons.md").write_text("\n".join(lines))
+    print(f"Examples -> {DOCS / 'example_reasons.md'}")
+
+    bg = Xt_df.sample(min(200, len(Xt_df)), random_state=RANDOM_STATE)
+    joblib.dump({"background": bg, "feature_names": list(prep.get_feature_names_out())},
+                MODELS / "shap_background.pkl")
+    print(f"Background -> {MODELS / 'shap_background.pkl'}")
+
+
+if __name__ == "__main__":
+    main()

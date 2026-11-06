@@ -1,0 +1,17 @@
+{
+  "variant": "lightgbm_noage",
+  "roc_auc": 0.7674,
+  "pr_auc": 0.2528,
+  "brier": 0.06731,
+  "cv_mean": 0.7604,
+  "cv_std": 0.0009,
+  "calibration_max_gap": 0.0042,
+  "fit_seconds": 10.5,
+  "n_train": 230633,
+  "n_test": 76878,
+  "shipped_variant": "lightgbm_noage",
+  "age_cost_roc_auc": 0.0019,
+  "lightgbm_minus_logistic_roc_auc": 0.0241,
+  "trained_on_rows": 307511,
+  "quick_mode": false
+}

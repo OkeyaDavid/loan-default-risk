@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+
+# Kaggle data: large and covered by competition rules - never committed
+data/raw/
+
+# Intermediate frames (rebuildable with `python src/features.py`)
+data/processed/features*.parquet
+
+_build.tar.gz
+_code.tar.gz
