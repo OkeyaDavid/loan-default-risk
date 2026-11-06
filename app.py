@@ -14,7 +14,6 @@ import joblib
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import shap
 import streamlit as st
 
 ROOT = Path(__file__).parent
@@ -31,6 +30,7 @@ st.set_page_config(page_title="Loan Default Risk & Approval Tool", page_icon="ðŸ
 
 @st.cache_resource
 def load_model():
+    """Loaded on first use, not at boot: nothing on the landing tab needs the model."""
     return joblib.load(ROOT / "models" / "model.pkl")
 
 
@@ -42,22 +42,15 @@ def load_tables():
     return cut, sample, metrics
 
 
-pipe = load_model()
 cut, sample, metrics = load_tables()
+best = cut.loc[cut["profit"].idxmax()]
 
-
-@st.cache_data
-def sample_scores() -> pd.Series:
-    """Score the held-out slice once so presets can be chosen by risk, not by row order."""
-    X = sample.drop(columns=[TARGET], errors="ignore")
-    return pd.Series(pipe.predict_proba(X)[:, 1], index=sample.index)
-
-
-scores = sample_scores()
+# Scores were computed at training time and stored with the sample, so booting the app is
+# three file reads: no model, no SHAP, no inference until someone edits an applicant.
+scores = sample["pd_hat"]
 median_idx = int(scores.sort_values().index[len(scores) // 2])
 low_idx, high_idx = int(scores.idxmin()), int(scores.idxmax())
-prep, model = pipe.named_steps["prep"], pipe.named_steps["model"]
-best = cut.loc[cut["profit"].idxmax()]
+FEATURES = [c for c in sample.columns if c not in (TARGET, "pd_hat")]
 
 st.title("Loan Default Risk & Approval Tool")
 st.caption(
@@ -100,8 +93,8 @@ with tab_score:
                         for i in scores.sort_values().index[::40][:20]})
         preset = st.selectbox("Start from a real held-out applicant", list(presets),
                               help="Real applications the model never saw during training.")
-        base = sample.drop(columns=[TARGET], errors="ignore").loc[presets[preset]]
-        template = sample.drop(columns=[TARGET], errors="ignore").iloc[0].copy()
+        base = sample[FEATURES].loc[presets[preset]]
+        template = sample[FEATURES].iloc[0].copy()
         for c in template.index:
             if c in base.index and pd.notna(base[c]):
                 template[c] = base[c]
@@ -144,7 +137,9 @@ with tab_score:
         template["EXT_SOURCE_MEAN"] = float(np.mean(exts))
         template["EXT_SOURCE_MIN"] = float(np.min(exts))
 
-    X_one = pd.DataFrame([template])[[c for c in sample.columns if c != TARGET]]
+    X_one = pd.DataFrame([template])[FEATURES]
+    pipe = load_model()                      # first model touch happens here
+    prep, model = pipe.named_steps["prep"], pipe.named_steps["model"]
     pd_hat = float(pipe.predict_proba(X_one)[0, 1])
     approve = pd_hat <= threshold
 
@@ -166,6 +161,7 @@ with tab_score:
                    f"Break-even on the stated economics is {BREAK_EVEN_PD:.1%}.")
 
         st.subheader("Why")
+        import shap                          # imported here: ~2s, and only on this tab
         Xt = prep.transform(X_one)
         names = prep.get_feature_names_out()
         sv = shap.TreeExplainer(model).shap_values(pd.DataFrame(Xt, columns=names))
@@ -229,8 +225,7 @@ with tab_card:
 **Data.** Home Credit Default Risk, `application_train.csv` only: {metrics['n_train']:,}
 training and {metrics['n_test']:,} held-out applications, default rate about 8%.
 
-**Model.** LightGBM, {len(prep.get_feature_names_out())} encoded features from ~25 source
-columns. No resampling and no class weights, so predicted probabilities stay calibrated and
+**Model.** LightGBM, {len(FEATURES)} source features (~25 columns before encoding). No resampling and no class weights, so predicted probabilities stay calibrated and
 the dollar figures above mean what they say. The imbalance is handled by choosing the
 threshold, which is the slider in the sidebar.
 

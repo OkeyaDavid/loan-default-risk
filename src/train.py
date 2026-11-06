@@ -164,8 +164,11 @@ def main(quick: bool) -> None:
     Xtr, Xte, ytr, yte = split(df, drop_age=(SHIPPED == "lightgbm_noage"))
     sample = Xte.copy()
     sample[TARGET] = yte.values
-    sample.sample(min(2000, len(sample)), random_state=RANDOM_STATE).to_csv(
-        PROCESSED / "app_sample.csv", index=False)
+    sample = sample.sample(min(2000, len(sample)), random_state=RANDOM_STATE)
+    # Score it here, once, so the deployed app does no model work until a user edits an
+    # applicant. Cold starts on the free tier are CPU-throttled; this keeps boot to file reads.
+    sample["pd_hat"] = shipped["_pipe"].predict_proba(sample.drop(columns=[TARGET]))[:, 1]
+    sample.to_csv(PROCESSED / "app_sample.csv", index=False)
     print(f"\nShipped {SHIPPED} -> {MODELS / 'model.pkl'}; metrics -> models/metrics.json")
 
 
