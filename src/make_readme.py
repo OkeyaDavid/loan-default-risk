@@ -64,8 +64,8 @@ policy actually cost?
 - **Dropping a protected attribute was nearly free, so it was dropped.** Removing age costs
   **{abs(m['age_cost_roc_auc']):.4f} ROC-AUC** and about
   ${(best_age_profit - best['profit'])/1e6:,.1f}m of contribution on a
-  ${best['profit']/1e9:,.2f}bn book — around
-  {100*(best_age_profit - best['profit'])/best_age_profit:.1f}% — so the shipped model uses
+  ${best['profit']/1e9:,.2f}bn book, around
+  {100*(best_age_profit - best['profit'])/best_age_profit:.1f}%, so the shipped model uses
   neither age nor gender.
 - **Probabilities are calibrated.** Worst gap between predicted and observed default rates
   across ten risk deciles: **{m['calibration_max_gap']:.3f}**. That is what makes the dollar
@@ -113,7 +113,7 @@ choice of threshold.
   a lending decision, so the shipped model is `lightgbm_noage`. The age variant stays in
   `train.py` as the evidence.
 - **Per-applicant reasons.** SHAP turns one score into the three factors that raised the risk
-  and the three that lowered it — the shape an adverse-action notice needs.
+  and the three that lowered it, which is the shape an adverse-action notice needs.
 
 ## Data
 
