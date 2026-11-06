@@ -13,7 +13,7 @@ from explain import pretty
 
 VARIANT = "lightgbm_noage"
 GH = "https://github.com/OkeyaDavid/loan-default-risk"
-APP = "https://loan-default-risk.streamlit.app"   # set after the first deploy
+APP = "https://credit-loan-default-risk.streamlit.app"
 
 
 def main() -> None:

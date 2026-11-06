@@ -1,6 +1,6 @@
 # Loan Default Risk & Approval Tool
 
-**[Live app](https://loan-default-risk.streamlit.app)** · [Code](https://github.com/OkeyaDavid/loan-default-risk) · Python · scikit-learn · LightGBM · SHAP · Streamlit
+**[Live app](https://credit-loan-default-risk.streamlit.app)** · [Code](https://github.com/OkeyaDavid/loan-default-risk) · Python · scikit-learn · LightGBM · SHAP · Streamlit
 
 Predicts the probability that a loan applicant defaults, explains every decision in plain
 English, and shows a lender what each approval policy costs.
