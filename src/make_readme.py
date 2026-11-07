@@ -120,7 +120,15 @@ choice of threshold.
 [Home Credit Default Risk](https://www.kaggle.com/competitions/home-credit-default-risk/data),
 `application_train.csv` only: ~307k applications, about 8% of which hit payment difficulties.
 The other eight tables are deliberately out of scope; published scores that use them run
-higher, around 0.79 ROC-AUC. The raw file is not committed (Kaggle terms, and it is 158 MB).
+higher, around 0.79 ROC-AUC.
+
+**No application records are republished here.** Kaggle's competition rules do not permit
+redistributing the data, so this repository contains the raw file neither whole nor in part:
+no row-level records, and no row-level outcomes. The applicants in the app are synthetic,
+drawn column-wise from the held-out distribution within risk deciles, jittered, and checked
+against every real row for collisions (`src/make_app_sample.py`). Everything else committed
+is an aggregate or a model artifact. Rebuild the full pipeline by downloading the file
+yourself into `data/raw/`.
 
 ## Run it
 
@@ -133,6 +141,7 @@ PYTHONPATH=src python src/features.py     # build the modelling table
 PYTHONPATH=src python src/train.py        # three variants, ~10 min on a laptop
 PYTHONPATH=src python src/cutoff.py       # policy sweep and chart
 PYTHONPATH=src python src/explain.py      # SHAP summary and worked examples
+PYTHONPATH=src python src/make_app_sample.py  # synthetic applicants for the app
 PYTHONPATH=src python src/make_readme.py  # regenerate this file from the artifacts
 streamlit run app.py
 ```

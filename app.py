@@ -98,8 +98,10 @@ with tab_score:
                    f"Highest risk in the sample ({scores[high_idx]:.1%})": high_idx}
         presets.update({f"Applicant {i} ({scores[i]:.1%})": int(i)
                         for i in scores.sort_values().index[::40][:20]})
-        preset = st.selectbox("Start from a real held-out applicant", list(presets),
-                              help="Real applications the model never saw during training.")
+        preset = st.selectbox("Start from an example applicant", list(presets),
+                              help="Synthetic applicants drawn from the held-out "
+                                   "distribution. Kaggle's rules do not allow republishing "
+                                   "the real records, so none are in this repository.")
         base = sample[FEATURES].loc[presets[preset]]
         template = sample[FEATURES].iloc[0].copy()
         for c in template.index:
@@ -252,6 +254,13 @@ before deciding. Keeping age would have bought {abs(metrics['age_cost_roc_auc'])
 — about 0.2% of contribution on this book. That is not worth putting a protected attribute
 into a lending decision, so the shipped model is `lightgbm_noage` and the age variant stays
 in `train.py` as the evidence.
+
+**Data handling.** The model is trained on the Kaggle Home Credit data, but no application
+records are published here. Kaggle's competition rules do not permit redistributing them, so
+the applicants in this app are synthetic: drawn column-wise from the held-out distribution
+within risk deciles and jittered, then checked against every real row for collisions
+(`src/make_app_sample.py`). The policy curve and all metrics come from the real held-out
+applicants and are aggregates.
 
 **Limitations.** One lender, one country, one definition of default. Only the main
 application table is used, so published scores using all nine tables run higher. Loss given

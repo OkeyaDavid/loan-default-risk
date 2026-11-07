@@ -10,5 +10,6 @@ data/raw/
 # Intermediate frames (rebuildable with `python src/features.py`)
 data/processed/features*.parquet
 
-_build.tar.gz
-_code.tar.gz
+# Row-level outcomes derived from the Kaggle data: rebuildable with train.py,
+# and not ours to republish. Only the aggregate cut-off tables are committed.
+data/processed/test_predictions_*.csv
